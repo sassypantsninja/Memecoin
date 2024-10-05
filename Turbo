@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract TurboMemeCoin is ERC20, Ownable {
+    uint256 public constant MAX_SUPPLY = 1_000_000_000 * 10**18; // 1 Billion tokens
+
+    // Fee for each transfer (2%)
+    uint256 public transferFeePercentage = 2;
+    
+    // Address for the burn wallet (where tokens will be sent and considered "burned")
+    address public burnWallet = address(0xdead);
+    
+    // Address for reflection pool
+    address public reflectionPool;
+
+    // Event to track burning
+    event TokensBurned(address indexed from, uint256 amount);
+    
+    // Event to track fees taken
+    event FeeTaken(address indexed from, address indexed to, uint256 amount);
+
+    constructor() ERC20("TurboMemeCoin", "TURBO") {
+        // Mint the entire supply to the contract owner
+        _mint(msg.sender, MAX_SUPPLY);
+        reflectionPool = msg.sender; // Owner can initially hold the reflection pool
+    }
+
+    // Override the transfer function to include a fee and burn mechanism
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal override {
+        // Calculate fee (2% of the amount)
+        uint256 feeAmount = (amount * transferFeePercentage) / 100;
+        
+        // Amount after deducting the fee
+        uint256 amountAfterFee = amount - feeAmount;
+
+        // Transfer the fee to the burn wallet or reflection pool
+        super._transfer(sender, burnWallet, feeAmount / 2); // Half goes to burn
+        super._transfer(sender, reflectionPool, feeAmount / 2); // Half goes to reflection pool
+        
+        // Emit events for tracking
+        emit FeeTaken(sender, burnWallet, feeAmount / 2);
+        emit FeeTaken(sender, reflectionPool, feeAmount / 2);
+
+        // Continue with the normal transfer for the remaining amount
+        super._transfer(sender, recipient, amountAfterFee);
+    }
+
+    // Burn function for users to destroy tokens manually
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+        emit TokensBurned(msg.sender, amount);
+    }
+
+    // Owner can set a new reflection pool
+    function setReflectionPool(address newReflectionPool) external onlyOwner {
+        reflectionPool = newReflectionPool;
+    }
+
+    // Owner can change the burn wallet (if needed)
+    function setBurnWallet(address newBurnWallet) external onlyOwner {
+        burnWallet = newBurnWallet;
+    }
+
+    // Owner can adjust the transaction fee percentage
+    function setTransferFeePercentage(uint256 newFeePercentage) external onlyOwner {
+        require(newFeePercentage <= 5, "Fee too high"); // Ensure the fee is not excessive
+        transferFeePercentage = newFeePercentage;
+    }
+}
