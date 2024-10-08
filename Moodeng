@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MoodengCoin is ERC20, Ownable {
+    uint256 public constant MAX_SUPPLY = 1_000_000_000 * 10**18; // 1 Billion tokens
+
+    // Optional burn fee percentage (if needed)
+    uint256 public transferFeePercentage = 2; // 2% fee on transfers
+    address public feeWallet = address(0xdead); // Fee wallet for burned tokens
+
+    event TokensBurned(address indexed from, uint256 amount);
+
+    constructor() ERC20("Moodeng Coin", "MDG") {
+        // Mint the initial supply to the contract owner (you can adjust this if needed)
+        _mint(msg.sender, MAX_SUPPLY);
+    }
+
+    // Optional: Transfer function override to include a burn/fee mechanism
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal override {
+        uint256 feeAmount = (amount * transferFeePercentage) / 100;
+        uint256 amountAfterFee = amount - feeAmount;
+
+        // Transfer the fee to the burn wallet or fee wallet
+        super._transfer(sender, feeWallet, feeAmount);
+
+        // Continue with the normal transfer of the remaining amount
+        super._transfer(sender, recipient, amountAfterFee);
+
+        emit TokensBurned(sender, feeAmount); // Event for fee/burn tracking
+    }
+
+    // Function to change the transfer fee (if needed)
+    function setTransferFeePercentage(uint256 newFee) external onlyOwner {
+        require(newFee <= 5, "Transfer fee too high"); // Ensure the fee is reasonable
+        transferFeePercentage = newFee;
+    }
+
+    // Function to change the fee wallet (e.g., burn wallet)
+    function setFeeWallet(address newFeeWallet) external onlyOwner {
+        feeWallet = newFeeWallet;
+    }
+
+    // Function to burn tokens
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+        emit TokensBurned(msg.sender, amount);
+    }
+
+    // Optional: Mint new tokens, ensuring the max supply isn't exceeded
+    function mint(address to, uint256 amount) external onlyOwner {
+        require(totalSupply() + amount <= MAX_SUPPLY, "Minting would exceed max supply");
+        _mint(to, amount);
+    }
+}
