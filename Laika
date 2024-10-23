@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract LaikaToken is ERC20, Ownable {
+    uint256 public constant INITIAL_SUPPLY = 1_000_000_000 * (10 ** 18); // 1 billion tokens
+    uint8 private _decimals = 18;
+
+    // Fee structure
+    uint256 public transferFee = 5; // 5% fee on every transfer
+    address public feeRecipient;
+
+    constructor() ERC20("Laika", "LAIKA") {
+        _mint(msg.sender, INITIAL_SUPPLY); // Mint all tokens to contract creator
+        feeRecipient = msg.sender; // Owner initially receives fees
+    }
+
+    // Overriding transfer function to include a fee
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        uint256 feeAmount = (amount * transferFee) / 100; // Calculate 5% fee
+        uint256 amountAfterFee = amount - feeAmount;
+
+        // Transfer fee to recipient
+        _transfer(_msgSender(), feeRecipient, feeAmount);
+        // Transfer remaining tokens to the recipient
+        _transfer(_msgSender(), recipient, amountAfterFee);
+
+        return true;
+    }
+
+    // Function to change feeRecipient
+    function setFeeRecipient(address newRecipient) external onlyOwner {
+        feeRecipient = newRecipient;
+    }
+
+    // Function to update the transfer fee percentage (onlyOwner can call)
+    function updateTransferFee(uint256 newFee) external onlyOwner {
+        require(newFee <= 10, "Fee can't exceed 10%");
+        transferFee = newFee;
+    }
+
+    // Optional: Burning function to destroy tokens
+    function burn(uint256 amount) external onlyOwner {
+        _burn(msg.sender, amount);
+    }
+}
