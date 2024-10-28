@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract ShibaInuToken is ERC20, Ownable {
+    uint256 public constant INITIAL_SUPPLY = 1_000_000_000_000 * (10 ** 18); // 1 trillion tokens
+    uint256 public transferFee = 1; // 1% fee on every transfer
+    address public feeRecipient;
+
+    constructor() ERC20("Shiba Inu", "SHIB") {
+        _mint(msg.sender, INITIAL_SUPPLY); // Mint initial supply to the owner
+        feeRecipient = msg.sender; // Initial fee recipient is the owner
+    }
+
+    // Override the transfer function to apply the fee
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        uint256 feeAmount = (amount * transferFee) / 100; // 1% fee
+        uint256 amountAfterFee = amount - feeAmount;
+
+        // Transfer fee to the feeRecipient
+        _transfer(_msgSender(), feeRecipient, feeAmount);
+        // Transfer remaining tokens to the recipient
+        _transfer(_msgSender(), recipient, amountAfterFee);
+
+        return true;
+    }
+
+    // Allow owner to set a new fee recipient
+    function setFeeRecipient(address newRecipient) external onlyOwner {
+        feeRecipient = newRecipient;
+    }
+
+    // Allow owner to change the transfer fee (up to a max of 5%)
+    function setTransferFee(uint256 newFee) external onlyOwner {
+        require(newFee <= 5, "Fee cannot exceed 5%");
+        transferFee = newFee;
+    }
+
+    // Function to burn tokens from the owner's balance
+    function burn(uint256 amount) external onlyOwner {
+        _burn(msg.sender, amount);
+    }
+}
