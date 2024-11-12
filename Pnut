@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract PnutMemeCoin is ERC20, Ownable {
+    uint256 public constant MAX_SUPPLY = 5_000_000_000 * 10 ** 18; // 5 billion Pnut tokens
+    uint256 public transferFeePercent = 2; // 2% transfer fee by default
+    address public pnutJar; // Address where fees are collected
+
+    event TransferFeeUpdated(uint256 newFee);
+    event PnutJarUpdated(address newPnutJar);
+
+    constructor(address _pnutJar) ERC20("Pnut MemeCoin", "PNUT") {
+        require(_pnutJar != address(0), "Invalid Pnut Jar address");
+        pnutJar = _pnutJar;
+        _mint(msg.sender, MAX_SUPPLY); // Mint all tokens to the deployer
+    }
+
+    function setTransferFeePercent(uint256 _newFee) external onlyOwner {
+        require(_newFee <= 5, "Fee too high; max is 5%");
+        transferFeePercent = _newFee;
+        emit TransferFeeUpdated(_newFee);
+    }
+
+    function setPnutJar(address _newPnutJar) external onlyOwner {
+        require(_newPnutJar != address(0), "Invalid Pnut Jar address");
+        pnutJar = _newPnutJar;
+        emit PnutJarUpdated(_newPnutJar);
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal override {
+        uint256 feeAmount = (amount * transferFeePercent) / 100;
+        uint256 amountAfterFee = amount - feeAmount;
+
+        super._transfer(sender, recipient, amountAfterFee);
+
+        if (feeAmount > 0) {
+            super._transfer(sender, pnutJar, feeAmount);
+        }
+    }
+
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+}
