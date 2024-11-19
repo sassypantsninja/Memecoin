@@ -1,0 +1,55 @@
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+    program_error::ProgramError,
+    msg,
+};
+use spl_token::{
+    instruction::{initialize_mint, mint_to},
+    state::Mint,
+    ID as SPL_TOKEN_PROGRAM_ID,
+};
+
+// Define the program's entrypoint
+entrypoint!(process_instruction);
+
+fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+) -> ProgramResult {
+    msg!("Creating the RIF Memecoin...");
+
+    let account_info_iter = &mut accounts.iter();
+    let mint_account = next_account_info(account_info_iter)?;
+    let rent_account = next_account_info(account_info_iter)?;
+    let owner_account = next_account_info(account_info_iter)?;
+
+    // Initialize a new mint for the RIF token
+    msg!("Initializing the RIF token mint...");
+    let decimals = 9; // Number of decimal places for the token
+    initialize_mint(
+        &SPL_TOKEN_PROGRAM_ID,
+        mint_account.key,
+        owner_account.key,
+        Some(owner_account.key), // Optionally set a freeze authority
+        decimals,
+    )?;
+
+    // Optionally, mint some initial supply
+    let initial_supply: u64 = 1_000_000_000 * 10u64.pow(decimals as u32); // Example supply: 1 billion tokens
+    mint_to(
+        &SPL_TOKEN_PROGRAM_ID,
+        mint_account.key,
+        owner_account.key,
+        owner_account.key,
+        &[],
+        initial_supply,
+    )?;
+
+    msg!("RIF Memecoin successfully created!");
+
+    Ok(())
+}
