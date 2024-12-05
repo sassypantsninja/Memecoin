@@ -1,0 +1,51 @@
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Mint, MintTo, TokenAccount, Token};
+
+declare_id!("YourProgramIDHere"); // Replace with the program ID after deployment
+
+#[program]
+pub mod hawk_tuah_memecoin {
+    use super::*;
+
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        decimals: u8,
+        initial_supply: u64,
+    ) -> Result<()> {
+        // Set mint metadata
+        let mint = &mut ctx.accounts.mint;
+        mint.decimals = decimals;
+
+        // Mint the initial supply to the user's token account
+        token::mint_to(
+            ctx.accounts.into_mint_to_context(),
+            initial_supply,
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(init, payer = user, mint::decimals = decimals, mint::authority = user)]
+    pub mint: Account<'info, Mint>,
+    #[account(init, payer = user, associated_token::mint = mint, associated_token::authority = user)]
+    pub token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user: Signer<'info>, // The wallet initializing the token
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+    pub token_program: Program<'info, Token>,
+}
+
+impl<'info> Initialize<'info> {
+    pub fn into_mint_to_context(&self) -> CpiContext<'_, '_, '_, 'info, MintTo<'info>> {
+        let cpi_accounts = MintTo {
+            mint: self.mint.to_account_info(),
+            to: self.token_account.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
+    }
+}
