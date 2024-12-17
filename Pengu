@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract PenguToken is ERC20, Ownable {
+    // Total supply cap for the token
+    uint256 public constant MAX_SUPPLY = 1_000_000_000 * 10**18; // 1 billion tokens
+
+    constructor() ERC20("Pengu Token", "PENGU") {
+        // Mint initial supply to the contract deployer
+        _mint(msg.sender, 100_000_000 * 10**18); // 100 million tokens
+    }
+
+    // Mint new tokens (onlyOwner can call this)
+    function mint(address to, uint256 amount) external onlyOwner {
+        require(totalSupply() + amount <= MAX_SUPPLY, "PenguToken: Max supply exceeded");
+        _mint(to, amount);
+    }
+
+    // Burn tokens to reduce supply
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+}
